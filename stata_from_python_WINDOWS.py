@@ -1,15 +1,6 @@
-%%px --local
-
-
-import os; import pandas as pd; import numpy  as np
-from pandas.tseries.offsets import *
-import statsmodels.formula.api as smf
-
-
-def winsorize(df, var, Q=0.01):
-    Q1, Q2 = df[var].quantile(Q), df[var].quantile(1-Q)
-    return np.where(df[var]<Q1, Q1, np.where(df[var]>Q2, Q2, df[var]))
-
+### Imports
+import pandas as pd; import numpy  as np
+import os;
 
 ### Stata regressions from python
 #
@@ -21,8 +12,33 @@ def winsorize(df, var, Q=0.01):
 # ssc install ranktest, replace
 ################################################
 
+
+### CONFIGURATION ##############################
+#
 # Change this (if needed) to point to the Stata app:
-STATA_APP = "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP"
+# Mac example:
+# STATA_APP = "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP"
+# WINDOWS   = False
+#
+# Windows example:
+STATA_APP = "C:\Program Files (x86)\Stata14\StataMP-64.exe"
+WINDOWS   = True
+#
+# Set up the folder where outputs will be placed.
+# CAUTION: the folder name cannot contain white spaces
+TARGET_FOLDER = "Regressions"
+# Leave it `None` if you want everyhting to stay in the main working directory
+# If you change it, remember to save your .dta files in that folder
+#
+################################################
+
+if TARGET_FOLDER is None: TARGET_FOLDER = os.getcwd()
+slash = "\\" if WINDOWS else "/"
+    
+target = TARGET_FOLDER if (TARGET_FOLDER.endswith("/") | (TARGET_FOLDER=="")) else TARGET_FOLDER + slash
+if not target.startswith(os.getcwd()): target = os.getcwd() + slash + target
+
+#print(target)
 
 def wait_then_kill(process, timeout=60*60):
     if process == 0: return
@@ -33,23 +49,40 @@ def wait_then_kill(process, timeout=60*60):
         process.kill()    
 
 def do_stata(do_file, *params):
+        
     ## Launch a do-file, given the fullpath to the do-file
     ## and a list of parameters.
-    import subprocess    
-    cmd = [STATA_APP, "do", do_file, *params]
+    import subprocess
+    
+    launcher = """
+    cd "{0}"
+    do  {1}
+    """.format(target, do_file)
+    with open("launcher.do", 'w') as file: file.write(launcher);
+        
+    cmd = [STATA_APP, "do", 'launcher', *params]
     return subprocess.call(cmd)
 
-def run_regression(do_file, spec="", timeout=60*60): 
+def run_regression(do_file, spec="", timeout=60*60):
+    
+    try: do_file = do_file['name']
+    except: pass
+    
     process = do_stata(do_file)
     wait_then_kill(process, timeout)
 
 def gen_FEs_command(all_fes, reg_fes):
 
+    try:
+        x = all_fes[0]
+    except:
+        return ""
+    
     bool_fes = ["Yes" if x in reg_fes else "-" for x in all_fes]
     name_fes = [x + " fixed effects" for x in all_fes]
     comm_fes = np.ravel([[x, y] for x,y in zip(name_fes, bool_fes)])
     comm_fes = "\"{0}\"".format("\", \"".join(comm_fes))
-    return comm_fes
+    return comm_fes + ","
 
 def replace_dict(string,dictionary):
     to_replace = [[x,y] for x,y in dictionary.items()]
@@ -57,6 +90,8 @@ def replace_dict(string,dictionary):
     return string
 
 def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=False):
+    
+    rename_dict = reg['rename']
     
     if specs is None: specs = [reg]
         
@@ -71,15 +106,16 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
     
     s = """
     
-    use {0}, clear
+    cd "{0}"
+    use {1}, clear
     set more off
     gen con = 1
 
     global SORT   = ""
-    global NAME   = "{1}"
+    global NAME   = "{2}"
     global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3) sortvar( $SORT )"
         
-    """.format( reg['dataset'], reg['name'] )
+    """.format( target, reg['dataset'], reg['name'] )
     
     if test_only: s += """keep if _n < 1000"""
      
@@ -88,12 +124,13 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
         for key, value in spec.items(): reg[key] = spec[key]
             
         cl_text   = "-".join(reg['cluster'])
+        if cl_text == "": cl_text="-"
         cl_text   = replace_dict(cl_text ,rename_dict).title()
         
         desc_txt  = reg['desc_txt'] if 'desc_txt' in reg.keys() else ""
         desc_tit  = reg['desc_tit'] if 'desc_tit' in reg.keys() else "Description"
 
-        add_text  = """ {0}, "SEs Clustered by", "{1}" """.format(gen_FEs_command(all_fes, reg['FEs']), cl_text)
+        add_text  = """ {0} "SEs Clustered by", "{1}" """.format(gen_FEs_command(all_fes, reg['FEs']), cl_text)
         if desc_txt != "": add_text += """, "{0}", "{1}" """.format(desc_tit, desc_txt)
         add_text  = replace_dict(add_text,rename_dict).title()
         
@@ -127,20 +164,19 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
     
     if do_file_name is None: do_file_name = reg['name']
     
-    with open(do_file_name + ".do", 'w') as file: file.write(s);
+    with open(target + do_file_name + ".do", 'w') as file: file.write(s);
         
-
 def table_for_regression(reg, save_latex=False):
     
     print(reg['name'])
-    tab = pd.read_table(reg['name'] + ".txt")
+    tab = pd.read_table(target + reg['name'] + ".txt")
     tab = replace_dict(tab, reg['rename'])
     tab = tab.replace("VARIABLES","Dependent Variable").replace(np.nan,"")
     tab = tab.rename_axis({'Unnamed: 0':'index'}, axis=1).set_index("index")
     tab.index.name = None
     
     if save_latex: 
-        tex_file_name = reg['name'] + '.tex'
+        tex_file_name = target + reg['name'] + '.tex'
         tab.to_latex(tex_file_name)
         with open(tex_file_name, 'r') as file : s = file.read()
         old =       "".join(['l']*(1+len(specs)))
@@ -149,3 +185,7 @@ def table_for_regression(reg, save_latex=False):
         with open(tex_file_name, 'w') as file: file.write(s)
             
     return tab
+
+def winsorize(df, var, Q=0.01):
+    Q1, Q2 = df[var].quantile(Q), df[var].quantile(1-Q)
+    return np.where(df[var]<Q1, Q1, np.where(df[var]>Q2, Q2, df[var]))
