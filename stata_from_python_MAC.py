@@ -17,12 +17,12 @@ import os;
 #
 # Change this (if needed) to point to the Stata app:
 # Mac example:
-# STATA_APP = "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP"
-# WINDOWS   = False
+STATA_APP = "/Applications/Stata/StataMP.app/Contents/MacOS/StataMP"
+WINDOWS   = False
 #
 # Windows example:
-STATA_APP = "C:\Program Files (x86)\Stata14\StataMP-64.exe"
-WINDOWS   = True
+# STATA_APP = "C:\Program Files (x86)\Stata14\StataMP-64.exe"
+# WINDOWS   = True
 #
 # Set up the folder where outputs will be placed.
 # CAUTION: the folder name cannot contain white spaces
@@ -38,6 +38,7 @@ slash = "\\" if WINDOWS else "/"
 target = TARGET_FOLDER if (TARGET_FOLDER.endswith("/") | (TARGET_FOLDER=="")) else TARGET_FOLDER + slash
 if not target.startswith(os.getcwd()): target = os.getcwd() + slash + target
 
+#print(target)
 
 
 ################################################
@@ -145,8 +146,13 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
 
         if 'rename_exp_vars' in reg.keys(): 
             for old_var, new_var in reg['rename_exp_vars'].items():
-                s += """gen {0} = . \nreplace {0} = {1}""".format(new_var, old_var)
+                s += "\ngen {0} = {1}".format(new_var, old_var)
                 reg['exp_vars'] = [x.replace(old_var, new_var) for x in reg['exp_vars']]
+
+        if 'interact' in reg.keys(): 
+            for var_1, var_2 in reg['interact']:
+                s += "\ngen {0}_X_{1} = {0} * {1}".format(var_1, var_2)
+                reg['exp_vars'] = ['{0}_X_{1}'.format(var_1, var_2), *reg['exp_vars']]
 
         params   = ( reg['dep_var'],
                 " ".join(reg['exp_vars']),
@@ -158,23 +164,18 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
             )
                 
         if len(reg['FEs']) == 0: # Univariate Regression
+            s += "\nivreg2  {0} {1} {2}, cluster( {3} )\n$OUTREG {5} addtext({6})".format(*params)
 
-            s += """
-ivreg2  {0} {1} {2}, cluster( {3} )
-$OUTREG {5} addtext({6})
+        else:                    # Regression with FEs
+            s += "\nreghdfe {0} {1} {2}, cluster( {3} ) absorb( {4} )\n$OUTREG {5} addtext({6})".format(*params)
 
-""".format(*params)
+        if 'rename_exp_vars' in reg.keys(): s += "\ndrop {0}".format(new_var)
 
-        else: # Regression with FEs
+        if 'interact' in reg.keys(): 
+            for var_1, var_2 in reg['interact']:
+                s += "\ndrop {0}_X_{1}".format(var_1, var_2)
 
-            s += """
-reghdfe {0} {1} {2}, cluster( {3} ) absorb( {4} )
-$OUTREG {5} addtext({6})
-
-""".format(*params)
-
-        if 'rename_exp_vars' in reg.keys(): s += """drop {0} \n""".format(new_var)
-
+        s += "\n"
 
     s += "\nexit, STATA clear \n"
     
