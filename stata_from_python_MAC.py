@@ -124,11 +124,11 @@ use {1}, clear
 set more off
 gen con = 1
 
-global SORT   = ""
-global NAME   = "{2}"
+global SORT   = "{2}"
+global NAME   = "{3}"
 global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3) sortvar( $SORT )"
         
-""".format( target, reg['dataset'], reg['name'], sort )
+""".format( target, reg['dataset'], sort, reg['name'] )
     
     if test_only: s += """keep if _n < 10000
     
