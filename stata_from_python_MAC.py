@@ -99,6 +99,14 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
     
     if specs is None: specs = [reg]
         
+    if 'sort' in reg.keys(): sort = " ".join(reg['sort'])
+
+
+    to_turn_into_list = ['exp_vars', 'cluster', 'FEs']
+    for key in to_turn_into_list:
+        try   : reg[key] = reg[key].split(" ")
+        except: pass
+
     all_fes = []
     for spec in specs:
         if 'FEs' in spec.keys():
@@ -119,7 +127,7 @@ global SORT   = ""
 global NAME   = "{2}"
 global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3) sortvar( $SORT )"
         
-""".format( target, reg['dataset'], reg['name'] )
+""".format( target, reg['dataset'], reg['name'], sort )
     
     if test_only: s += """keep if _n < 10000
     
@@ -146,13 +154,8 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
 
         if 'rename_exp_vars' in reg.keys(): 
             for old_var, new_var in reg['rename_exp_vars'].items():
-                s += "\ngen {0} = {1}".format(new_var, old_var)
+                s += """gen {0} = . \nreplace {0} = {1}""".format(new_var, old_var)
                 reg['exp_vars'] = [x.replace(old_var, new_var) for x in reg['exp_vars']]
-
-        if 'interact' in reg.keys(): 
-            for var_1, var_2 in reg['interact']:
-                s += "\ngen {0}_X_{1} = {0} * {1}".format(var_1, var_2)
-                reg['exp_vars'] = ['{0}_X_{1}'.format(var_1, var_2), *reg['exp_vars']]
 
         params   = ( reg['dep_var'],
                 " ".join(reg['exp_vars']),
@@ -164,18 +167,23 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
             )
                 
         if len(reg['FEs']) == 0: # Univariate Regression
-            s += "\nivreg2  {0} {1} {2}, cluster( {3} )\n$OUTREG {5} addtext({6})".format(*params)
 
-        else:                    # Regression with FEs
-            s += "\nreghdfe {0} {1} {2}, cluster( {3} ) absorb( {4} )\n$OUTREG {5} addtext({6})".format(*params)
+            s += """
+ivreg2  {0} {1} {2}, cluster( {3} )
+$OUTREG {5} addtext({6})
 
-        if 'rename_exp_vars' in reg.keys(): s += "\ndrop {0}".format(new_var)
+""".format(*params)
 
-        if 'interact' in reg.keys(): 
-            for var_1, var_2 in reg['interact']:
-                s += "\ndrop {0}_X_{1}".format(var_1, var_2)
+        else: # Regression with FEs
 
-        s += "\n"
+            s += """
+reghdfe {0} {1} {2}, cluster( {3} ) absorb( {4} )
+$OUTREG {5} addtext({6})
+
+""".format(*params)
+
+        if 'rename_exp_vars' in reg.keys(): s += """drop {0} \n""".format(new_var)
+
 
     s += "\nexit, STATA clear \n"
     

@@ -98,6 +98,14 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
     
     if specs is None: specs = [reg]
         
+    if 'sort' in reg.keys(): sort = " ".join(reg['sort'])
+
+
+    to_turn_into_list = ['exp_vars', 'cluster', 'FEs']
+    for key in to_turn_into_list:
+        try   : reg[key] = reg[key].split(" ")
+        except: pass
+
     all_fes = []
     for spec in specs:
         if 'FEs' in spec.keys():
@@ -118,7 +126,7 @@ global SORT   = ""
 global NAME   = "{2}"
 global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3) sortvar( $SORT )"
         
-""".format( target, reg['dataset'], reg['name'] )
+""".format( target, reg['dataset'], reg['name'], sort )
     
     if test_only: s += """keep if _n < 10000
     
