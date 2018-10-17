@@ -95,17 +95,18 @@ def replace_dict(string,dictionary):
 
 def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=False):
     
+
+    to_turn_into_list = ['exp_vars', 'cluster', 'FEs', 'sort']
+    for key in to_turn_into_list:
+        try   : reg[key] = reg[key].split(" ")
+        except: pass
+
+
     rename_dict = reg['rename']
     
     if specs is None: specs = [reg]
         
     if 'sort' in reg.keys(): sort = " ".join(reg['sort'])
-
-
-    to_turn_into_list = ['exp_vars', 'cluster', 'FEs']
-    for key in to_turn_into_list:
-        try   : reg[key] = reg[key].split(" ")
-        except: pass
 
     all_fes = []
     for spec in specs:
