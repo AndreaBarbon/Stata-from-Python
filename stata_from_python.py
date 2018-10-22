@@ -188,7 +188,7 @@ $OUTREG {5} addtext({6})
     
     with open(target + do_file_name + ".do", 'w') as file: file.write(s);
         
-def table_for_regression(reg, save_latex=False):
+def table_for_regression(reg, save_latex=True):
     
     print(reg['name'])
     tab = pd.read_table(target + reg['name'] + ".txt")
