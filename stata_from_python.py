@@ -151,7 +151,7 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
 
         if 'rename_exp_vars' in reg.keys(): 
             for old_var, new_var in reg['rename_exp_vars'].items():
-                s += """gen {0} = . \nreplace {0} = {1}""".format(new_var, old_var)
+                s += """gen {0} = . \nreplace {0} = {1}\n""".format(new_var, old_var)
                 reg['exp_vars'] = [x.replace(old_var, new_var) for x in reg['exp_vars']]
 
         params   = ( reg['dep_var'],
