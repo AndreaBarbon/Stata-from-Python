@@ -179,7 +179,9 @@ $OUTREG {5} addtext({6})
 
 """.format(*params)
 
-        if 'rename_exp_vars' in reg.keys(): s += """drop {0} \n""".format(new_var)
+        if 'rename_exp_vars' in reg.keys(): 
+            for new_var in reg['rename_exp_vars'].values():
+                s += """drop {0} \n""".format(new_var)
 
 
     s += "\nexit, STATA clear \n"
