@@ -212,5 +212,6 @@ def table_for_regression(reg, save_latex=True):
     return tab
 
 def winsorize(df, var, Q=0.01):
+    if type(var) is str: var = [var]
     Q1, Q2 = df[var].quantile(Q), df[var].quantile(1-Q)
     return np.where(df[var]<Q1, Q1, np.where(df[var]>Q2, Q2, df[var]))
