@@ -207,6 +207,7 @@ def table_for_regression(reg, save_latex=True):
         old =       "".join(['l']*(1+n_specs))
         new = "l" + "".join(['c']*(n_specs))
         s    = s.replace(old, new)
+        s    = s.replace('|', '$\mid$')
         with open(tex_file_name, 'w') as file: file.write(s)
             
     return tab
