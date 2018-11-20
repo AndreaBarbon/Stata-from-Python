@@ -196,7 +196,11 @@ def table_for_regression(reg, save_latex=True):
     tab = pd.read_table(target + reg['name'] + ".txt")
     tab = replace_dict(tab, reg['rename'])
     tab = tab.replace("VARIABLES","Dependent Variable").replace(np.nan,"")
-    tab = tab.rename_axis({'Unnamed: 0':'index'}, axis=1).set_index("index")
+    try:
+        tab = tab.rename({'Unnamed: 0':'index'}, axis=1).set_index("index")
+    except:
+        tab = tab.rename_axis({'Unnamed: 0':'index'}, axis=1).set_index("index")
+        
     tab.index.name = None
     n_specs = len(tab.columns)
     
