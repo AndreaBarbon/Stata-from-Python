@@ -141,8 +141,12 @@ global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3)
         desc_txt  = reg['desc_txt'] if 'desc_txt' in reg.keys() else ""
         desc_tit  = reg['desc_tit'] if 'desc_tit' in reg.keys() else "Description"
 
+        desc2_txt = reg['desc2_txt'] if 'desc2_txt' in reg.keys() else ""
+        desc2_tit = reg['desc2_tit'] if 'desc2_tit' in reg.keys() else "Description"
+
         add_text  = """ {0} "SEs Clustered by", "{1}" """.format(gen_FEs_command(all_fes, reg['FEs']), cl_text)
-        if desc_txt != "": add_text += """, "{0}", "{1}" """.format(desc_tit, desc_txt)
+        if desc_txt  != "": add_text += """, "{0}", "{1}" """.format(desc_tit, desc_txt)
+        if desc2_txt != "": add_text += """, "{0}", "{1}" """.format(desc2_tit, desc2_txt)
         add_text  = replace_dict(add_text,rename_dict).title()
         
         replace   = "replace" if sp == 0 else "append"

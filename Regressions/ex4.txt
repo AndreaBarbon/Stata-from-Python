@@ -1,0 +1,13 @@
+	(1)	(2)
+VARIABLES	approve	approve
+		
+adults_proxy	-2.601**	-2.601**
+	(-2.496)	(-2.496)
+Constant	42.194***	42.194***
+	(41.621)	(41.621)
+		
+Observations	5,331	5,331
+R-squared	0.085	0.085
+Ses Clustered By	Date-Company	Date-Company
+Adult Proxy	Standard	Winsorized
+Note	Boh	Jesse
