@@ -1,4 +1,9 @@
-import pandas as pd; import numpy  as np; import os; from sys import platform;
+import os
+import pandas as pd
+import numpy as np
+from sys import platform
+from tabulate import tabulate   
+import pyperclip
 
 ### Stata regressions from python
 #
@@ -7,6 +12,8 @@ import pandas as pd; import numpy  as np; import os; from sys import platform;
 # ssc install reghdfe, replace
 # ssc install ivreg2, replace
 # ssc install ranktest, replace
+
+reg_baseline = {'FEs':[], 'cluster':[], 'rename':{}}
 
 ### CONFIGURATION ##############################
 #
@@ -38,6 +45,21 @@ if not target.startswith(os.getcwd()): target = os.getcwd() + slash + target
 
 ################################################
 # Functions
+
+def df_to_markdown(df, y_index=False):
+    blob = tabulate(df, headers='keys', tablefmt='pipe')
+    if not y_index:
+        s = '\n'.join(['| {}'.format(row.split('|', 2)[-1]) for row in blob.split('\n')])
+        pyperclip.copy(s)
+        return s
+
+    pyperclip.copy(blob)
+    return blob
+
+def to_stata(df, name):
+    if not os.path.exists("Regressions"): os.makedirs("Regressions")
+    df.to_stata("Regressions/{0}.dta".format(name))
+
 
 def wait_then_kill(process, timeout=60*60):
     if process == 0: return
@@ -88,9 +110,8 @@ def replace_dict(string,dictionary):
     for rep in to_replace: string = string.replace(*rep)
     return string
 
-def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=False):
+def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=False, precision=2):
     
-
     to_turn_into_list = ['exp_vars', 'cluster', 'FEs', 'sort']
     for key in to_turn_into_list:
         try   : reg[key] = reg[key].split(" ")
@@ -103,6 +124,8 @@ def write_do_file_for_regression(reg, specs=None, do_file_name=None, test_only=F
         
     sort = ""
     if 'sort' in reg.keys(): sort = " ".join(reg['sort'])
+
+    if 'precision' in reg.keys(): precision = int(reg['precision'])
 
     all_fes = []
     for spec in specs:
@@ -122,9 +145,9 @@ gen con = 1
 
 global SORT   = "{2}"
 global NAME   = "{3}"
-global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec(3) sortvar( $SORT )"
+global OUTREG = "outreg2 using $NAME.txt, asterisk(coef) r2 tstat nonotes dec({4}) sortvar( $SORT )"
         
-""".format( target, reg['dataset'], sort, reg['name'] )
+""".format( target, reg['dataset'], sort, reg['name'], precision )
     
     if test_only: s += """keep if _n < 10000
     
@@ -194,7 +217,7 @@ $OUTREG {5} addtext({6})
     
     with open(target + do_file_name + ".do", 'w') as file: file.write(s);
         
-def table_for_regression(reg, save_latex=True):
+def table_for_regression(reg, save_latex=True, precision=3):
     
     print(reg['name'])
     tab = pd.read_table(target + reg['name'] + ".txt")
@@ -210,7 +233,7 @@ def table_for_regression(reg, save_latex=True):
     
     if save_latex: 
         tex_file_name = target + reg['name'] + '.tex'
-        tab.to_latex(tex_file_name)
+        tab.to_latex(tex_file_name, float_format="%.{0}f".format(precision))
         with open(tex_file_name, 'r') as file : s = file.read()
         old =       "".join(['l']*(1+n_specs))
         new = "l" + "".join(['c']*(n_specs))
@@ -224,3 +247,8 @@ def winsorize(df, var, Q=0.01):
     if type(var) is str: var = [var]
     Q1, Q2 = df[var].quantile(Q), df[var].quantile(1-Q)
     return np.where(df[var]<Q1, Q1, np.where(df[var]>Q2, Q2, df[var]))
+
+
+
+def hello():
+    print("Hello!")
