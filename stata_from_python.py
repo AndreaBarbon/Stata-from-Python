@@ -50,6 +50,9 @@ def df_to_markdown(df, y_index=False):
     blob = tabulate(df, headers='keys', tablefmt='pipe')
     if not y_index:
         s = '\n'.join(['| {}'.format(row.split('|', 2)[-1]) for row in blob.split('\n')])
+        s = s.replace("***  ","`***`")
+        s = s.replace("**  ","`**`")
+        s = s.replace("|  index", "|       ")
         pyperclip.copy(s)
         return s
 
